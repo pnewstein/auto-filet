@@ -89,6 +89,19 @@ class PreviewCylinder:
             axis_layer = next(l for l in viewer.layers if isinstance(l, Points))
         if len(axis_layer.data) != 2:
             raise ValueError("wrong number of points")
+        if preview_channel is None:
+            preview_channel = next(l for l in viewer.layers if isinstance(l, Image))
+        if axis_layer.ndim == 4 and preview_channel.data.shape[0] == 1:
+            # do full load
+            for layer in viewer.layers:
+                layer.data = np.array(layer.data)
+                assert layer.ndim == 4
+                if isinstance(layer, Image):
+                    assert layer.data.shape[0] == 1
+                    layer.data = layer.data[0, ...]
+                if isinstance(layer, Points):
+                    assert np.all(layer.data[:, 0] == 0)
+                    layer.data = layer.data[:, 1:]
         radius = np.linspace(0, max_radius, 300)
         theta = np.linspace(0, np.pi * 2, theta_resolution)
         p0, p1 = axis_layer._transforms[1:].simplified(axis_layer.data)
@@ -96,8 +109,6 @@ class PreviewCylinder:
         p0z, p0y, p0x = p0.tolist()
         p1z, p1y, p1x = p1.tolist()
         axis_points = ((p0z, p0y, p0x), (p1z, p1y, p1x))
-        if preview_channel is None:
-            preview_channel = next(l for l in viewer.layers if isinstance(l, Image))
         coordinates = cylindrical_to_map_coordinates(
             theta, radius, height, axis_points, preview_channel
         )
@@ -370,3 +381,4 @@ class ZoomIn:
             degrees_per_pixel=360 * theta_range / theta.size / 2 / np.pi,
             microns_per_pixel=h_range / height.size,
         )
+
