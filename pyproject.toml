@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auto-filet"
+version = "0.0.1"
+description = "Automated file processing utilities"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Peter Newstein" }
+]
+keywords = ["automation", "files", "processing"]
+
+dependencies = [
+    "napari",
+    "scipy",
+    "numpy"
+]
+
+[project.urls]
+Homepage = "https://github.com/pnewstein/auto-filet"
+Repository = "https://github.com/pnewstein/auto-filet"
+
+[tool.setuptools]
+py-modules = ["auto_filet"]
+
+[tool.setuptools.packages.find]
+where = ["."]
