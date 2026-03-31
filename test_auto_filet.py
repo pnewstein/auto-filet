@@ -26,8 +26,8 @@ def add_data(viewer: "napari.viewer.Viewer"):
     viewer.add_points([[0, 50, 25], [40, 50, 25]], scale=(1, 1, 2))
 
 
-def test_preview(make_viewer):
-    viewer = make_viewer()
+def test_preview(make_napari_viewer):
+    viewer = make_napari_viewer()
     add_data(viewer)
     pc = PreviewCylinder.create(viewer)
     assert np.array_equal([[0, 50, 50], [40, 50, 50]], pc.axis_points)
@@ -47,3 +47,7 @@ def test_preview(make_viewer):
     # pc2 = PreviewCylinder.from_dict(pc.to_dict(), viewer)
     assert json.dumps(z3.to_dict()) == json.dumps(z3.to_dict())
     assert z3.out_layers[0].data[6, 277, 80] == 10
+    full = z3.get_full_resolution_dict()
+    z4 = ZoomIn.from_dict(full, viewer)
+    assert z4.out_layers[0].data.sum() == 368208
+    

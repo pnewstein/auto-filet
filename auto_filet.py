@@ -47,6 +47,31 @@ def cylindrical_to_map_coordinates(
     return np.moveaxis(coords, -1, 0)
 
 
+def get_square_pixels(
+    maxtheta: float,
+    mintheta: float,
+    maxh: float,
+    minh: float,
+    slice_npixels: int,
+    mean_r: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    theta_range = maxtheta - mintheta
+    # theta_range in radians * radius is arc length
+    h_range = maxh - minh
+    arc_range = theta_range * mean_r
+    # arc_range / h_range = theta_resolution / y_length
+    # x_lenth * y_length = slice_npixels
+    # arc_range / h_range = slice_npixels / y_length ** 2
+    # y_length = sqrt(slice_npixels * h_range / arc_range)
+    # arc_range / h_range = theta_resolution ** 2 / slice_npixels
+    # theta_resolution = sqrt(arc_range * slice_npixels / h_range)
+    theta_resolution = np.sqrt(slice_npixels * arc_range / h_range).astype(int)
+    height_resolution = np.sqrt(slice_npixels * h_range / arc_range).astype(int)
+    height = np.linspace(minh, maxh, height_resolution)
+    theta = np.linspace(mintheta, maxtheta, theta_resolution)
+    return height, theta
+
+
 @dataclass
 class PreviewCylinder:
     """
@@ -217,8 +242,6 @@ class ZoomIn:
     radius: np.ndarray
     preview: PreviewCylinder
     out_layers: list[Image]
-    degrees_per_pixel: float
-    microns_per_pixel: float
 
     @classmethod
     def create(
@@ -259,21 +282,10 @@ class ZoomIn:
         mintheta, maxtheta = source.theta[[mintheta_i, maxtheta_i]]
         # Calculate height and theta resolution
         mean_r = (maxr - minr) / 2
-        h_range = maxh - minh
-        theta_range = maxtheta - mintheta
-        # theta_range in radians * radius is arc length
-        arc_range = theta_range * mean_r
-        # arc_range / h_range = theta_resolution / y_length
-        # x_lenth * y_length = slice_npixels
-        # arc_range / h_range = slice_npixels / y_length ** 2
-        # y_length = sqrt(slice_npixels * h_range / arc_range)
-        # arc_range / h_range = theta_resolution ** 2 / slice_npixels
-        # theta_resolution = sqrt(arc_range * slice_npixels / h_range)
-        theta_resolution = np.sqrt(slice_npixels * arc_range / h_range).astype(int)
-        height_resolution = np.sqrt(slice_npixels * h_range / arc_range).astype(int)
+        height, theta = get_square_pixels(
+            maxtheta, mintheta, maxh, minh, slice_npixels, mean_r
+        )
         radius = np.linspace(minr, maxr, r_resolution)
-        height = np.linspace(minh, maxh, height_resolution)
-        theta = np.linspace(mintheta, maxtheta, theta_resolution)
         coordinates = cylindrical_to_map_coordinates(
             theta, radius, height, preview.axis_points, preview.source_layer
         )
@@ -305,8 +317,22 @@ class ZoomIn:
             radius=radius,
             preview=preview,
             out_layers=out_layers,
-            degrees_per_pixel=360 * theta_range / theta_resolution / 2 / np.pi,
-            microns_per_pixel=h_range / height_resolution,
+        )
+
+    def get_degrees_per_pixel(self) -> float:
+        return 360 * (self.theta[-1] - self.theta[0]) / self.theta.size / 2 / np.pi
+
+    def get_microns_per_pixel(self) -> float:
+        return (self.height[-1] - self.height[0]) / self.height.size
+
+    def get_max_scale(self) -> tuple[float, float, float]:
+        """
+        Returns the scale in microns in all three axes at their lowest resolution
+        """
+        return (
+            (self.radius[-1] - self.radius[0]) / self.radius.size,
+            self.get_microns_per_pixel(),
+            self.radius[-1] / self.theta.size,
         )
 
     def to_dict(self) -> dict:
@@ -327,6 +353,26 @@ class ZoomIn:
             ],
             "preview": self.preview.to_dict(),
         }
+
+    def get_full_resolution_dict(self) -> dict:
+        target_scale = self.preview.source_layer.scale.min()
+        r_range = self.radius[-1] - self.radius[0]
+        n_radius_samples = int(np.ceil(r_range / target_scale))
+        radius = np.linspace(self.radius[0], self.radius[-1], n_radius_samples)
+        current_scale = max(self.get_max_scale()[1:])
+        sample_frac = target_scale / current_scale
+        new_npixels = (self.height.size * self.theta.size) // (sample_frac**2)
+        height, theta = get_square_pixels(
+            self.theta[-1],
+            self.theta[0],
+            self.height[-1],
+            self.height[0],
+            new_npixels,
+            (self.radius[-1] - self.radius[0]) / 2,
+        )
+        return self.__class__(
+            theta, height, radius, self.preview, self.out_layers
+        ).to_dict()
 
     @classmethod
     def from_dict(
@@ -378,7 +424,4 @@ class ZoomIn:
             radius=radius,
             preview=preview,
             out_layers=out_layers,
-            degrees_per_pixel=360 * theta_range / theta.size / 2 / np.pi,
-            microns_per_pixel=h_range / height.size,
         )
-
