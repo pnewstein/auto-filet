@@ -86,7 +86,7 @@ class PreviewCylinder:
     radius: np.ndarray
     source_layer: Image
     axis_points: tuple[tuple[float, float, float], tuple[float, float, float]]
-    out_layer: Image
+    out_layer: Image | None
 
     @classmethod
     def create(
@@ -157,6 +157,7 @@ class PreviewCylinder:
 
         break_points defaults to the last points layer
         """
+        assert self.out_layer is not None
         if break_points is None:
             break_points = next(
                 l for l in self.viewer.layers[::-1] if isinstance(l, Points)
@@ -196,6 +197,7 @@ class PreviewCylinder:
         src_dict: dict,
         viewer: napari.viewer.Viewer,
         source_layer: Image | None = None,
+        create_out_layer=True,
     ):
         """
         creates a PreviewCylinder from a dictionary, perhaps created by
@@ -211,13 +213,16 @@ class PreviewCylinder:
         theta = np.linspace(*src_dict["theta"])
         radius = np.linspace(*src_dict["radius"])
         height = np.linspace(*src_dict["height"])
-        coordinates = cylindrical_to_map_coordinates(
-            theta, radius, height, axis_points, source_layer
-        )
-        out = map_coordinates(source_layer.data, coordinates, order=0, cval=0)
-        out = out.swapaxes(1, 0)
-        out_layer = viewer.add_image(out, name="preview")
-        assert isinstance(out_layer, Image)
+        if create_out_layer:
+            coordinates = cylindrical_to_map_coordinates(
+                theta, radius, height, axis_points, source_layer
+            )
+            out = map_coordinates(source_layer.data, coordinates, order=0, cval=0)
+            out = out.swapaxes(1, 0)
+            out_layer = viewer.add_image(out, name="preview")
+            assert isinstance(out_layer, Image)
+        else:
+            out_layer = None
         return cls(
             viewer=viewer,
             theta=theta,
@@ -266,7 +271,6 @@ class ZoomIn:
         """
         if isinstance(source, PreviewCylinder):
             preview = source
-            assert np.array_equal(source.out_layer.scale, [1, 1, 1])
         else:
             preview = source.preview
             assert np.array_equal(source.out_layers[0].scale, [1, 1, 1])
@@ -294,7 +298,7 @@ class ZoomIn:
             image_layers = []
             for layer in preview.viewer.layers:
                 if isinstance(layer, Image):
-                    if layer.name == preview.out_layer.name:
+                    if preview.out_layer is not None and (layer.name == preview.out_layer.name):
                         break
                     image_layers.append(layer)
         out_layers: list[Image] = []
@@ -388,19 +392,22 @@ class ZoomIn:
         PreviewCylinder. source_layer defaults to the first image layer in
         viewer. image_layers are the layers to be included in the zoomin
         """
-        preview = PreviewCylinder.from_dict(src_dict["preview"], viewer, source_layer)
+        preview = PreviewCylinder.from_dict(
+            src_dict["preview"], viewer, source_layer, create_out_layer=False
+        )
         theta = np.linspace(*src_dict["theta"])
         radius = np.linspace(*src_dict["radius"])
         height = np.linspace(*src_dict["height"])
-        coordinates = cylindrical_to_map_coordinates(
-            theta, radius, height, preview.axis_points, preview.source_layer
-        )
+        if image_layers is None or len(image_layers) != 0:
+            coordinates = cylindrical_to_map_coordinates(
+                theta, radius, height, preview.axis_points, preview.source_layer
+            )
         if image_layers is None:
             # take the layers before the preview layer
             image_layers = []
             for layer in preview.viewer.layers:
                 if isinstance(layer, Image):
-                    if layer.name == preview.out_layer.name:
+                    if preview.out_layer is not None and (layer.name == preview.out_layer.name):
                         break
                     image_layers.append(layer)
         out_layers: list[Image] = []

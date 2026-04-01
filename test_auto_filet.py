@@ -6,7 +6,7 @@ import numpy as np
 if TYPE_CHECKING:
     import napari.viewer
 
-from cylinder import PreviewCylinder, ZoomIn
+from auto_filet import PreviewCylinder, ZoomIn
 
 
 def add_data(viewer: "napari.viewer.Viewer"):
