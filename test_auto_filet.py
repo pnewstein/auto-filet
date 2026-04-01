@@ -48,6 +48,7 @@ def test_preview(make_napari_viewer):
     assert json.dumps(z3.to_dict()) == json.dumps(z3.to_dict())
     assert z3.out_layers[0].data[6, 277, 80] == 10
     full = z3.get_full_resolution_dict()
-    z4 = ZoomIn.from_dict(full, viewer)
+    z4 = ZoomIn.from_dict(full, viewer, image_layers=[viewer.layers[0]])
+    assert len(z4.out_layers) == 1
     assert z4.out_layers[0].data.sum() == 368208
     
