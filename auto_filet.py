@@ -298,7 +298,9 @@ class ZoomIn:
             image_layers = []
             for layer in preview.viewer.layers:
                 if isinstance(layer, Image):
-                    if preview.out_layer is not None and (layer.name == preview.out_layer.name):
+                    if preview.out_layer is not None and (
+                        layer.name == preview.out_layer.name
+                    ):
                         break
                     image_layers.append(layer)
         out_layers: list[Image] = []
@@ -407,7 +409,10 @@ class ZoomIn:
             image_layers = []
             for layer in preview.viewer.layers:
                 if isinstance(layer, Image):
-                    if preview.out_layer is not None and (layer.name == preview.out_layer.name):
+                    if (
+                        preview.out_layer is not None
+                        and (layer.name == preview.out_layer.name)
+                    ) or layer.name.endswith("-zoomin"):
                         break
                     image_layers.append(layer)
         out_layers: list[Image] = []
