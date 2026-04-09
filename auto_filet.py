@@ -139,7 +139,7 @@ class PreviewCylinder:
         )
         out = map_coordinates(preview_channel.data, coordinates, order=0, cval=0)
         out = out.swapaxes(1, 0)
-        out_layer = viewer.add_image(out, name="preview")
+        out_layer = viewer.add_image(out, name="preview", projection_mode="max")
         assert isinstance(out_layer, Image)
         return cls(
             viewer=viewer,
