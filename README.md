@@ -52,6 +52,6 @@ Once napari is succesfuly installed, use the following command
    another points layer, and add two points defining the bounding box of the
    ZoomIn
 
-    ``` Zoomin.create(pc) ``` 
+    ``` ZoomIn.create(pc) ``` 
 
 1. Save the newly created layers
