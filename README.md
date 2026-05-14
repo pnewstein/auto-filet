@@ -38,8 +38,8 @@ Once napari is succesfuly installed, use the following command
    preview 
 
    ```
-   from auto_filet import PreviewCylinder, ZoomIn
-   pc = PreviewCylinder.create(viewer)
+   from auto_filet import AutoFilet, View
+   pc = AutoFilet.create(viewer)
    ```
 1. To change where the auto-filet is split, create a new points layer and add a
    point at the x value where you would like the split. (the Z and Y
@@ -48,10 +48,23 @@ Once napari is succesfuly installed, use the following command
 
     ``` pc.shift() ```
 
-1. To create a high resolution auto-filet of a subset of an image, first create
-   another points layer, and add two points defining the bounding box of the
-   ZoomIn
+1. run the following code to perform the split
 
-    ``` ZoomIn.create(pc) ``` 
+    ``` pc.shift() ```
 
-1. Save the newly created layers
+1. To create a high resolution rendering of a portion of the image add two points defining the bounding box in autofilet coordinets
+
+    ``` View.create(pc) ``` 
+
+### IO
+
+1. Save the instructions for this view
+
+    ```
+    from pathlib import Path
+    import json
+
+    Path("Auto_filet.json").write_text(json.dumps(pc.to_dict()))
+    ```
+1.  After loa image, load 
+    
