@@ -226,14 +226,19 @@ class AutoFilet:
 
     def render(self):
         coords = cylindrical_to_data(
-            self.height, self.radius, self.theta, self.cyl_frame, self.source_layer.scale
+            self.height,
+            self.radius,
+            self.theta,
+            self.cyl_frame,
+            self.source_layer.scale,
         )
         out_data = map_coordinates(self.source_layer.data, coords, order=0, cval=0)
         out_data = out_data.swapaxes(1, 0)
-        out_layer = self.viewer.add_image(out_data, name="preview", projection_mode="max")
+        out_layer = self.viewer.add_image(
+            out_data, name="preview", projection_mode="max"
+        )
         assert isinstance(out_layer, Image)
         self.out_layer = out_layer
-        
 
     def shift(self, break_points: Points | None = None):
         """
@@ -471,3 +476,106 @@ class View:
                 out_layers=out_layers,
                 mid_theta=data["mid_theta"],
             )
+
+
+@dataclass(frozen=True)
+class ZoomIn:
+    """
+    Represents a full channel high resolution zoom of an autofilet
+
+    can also be the source of further zoomins
+    """
+
+    theta: np.ndarray
+    height: np.ndarray
+    radius: np.ndarray
+    preview: AutoFilet
+    out_layers: list[Image]
+
+    @classmethod
+    def create(
+        cls,
+        source: AutoFilet,
+        image_layers: list[Image] | None = None,
+        bbox_points: Points | None = None,
+        r_resolution=512,
+        slice_npixels=500_000,
+    ):
+        """
+        Zooms in on a region of an autofilet
+
+        source can be an AutoFilet. This defines what layer
+            bbox_points uses to define limits for height, theta, and radius
+        bbox_points is a points layer a set of points that are gaurenteed to be
+            included in the zoomin. Defaults to the last Points layer r_resolution
+            is the number samples to take in the radius axis. Defaults to 512
+        slice_npixels is the number of pixels in a 2D angle by height image.
+            defaults to 500_000 these pixels are exactly square in micron space in
+            the middle of the radius axis
+        """
+        if bbox_points is None:
+            bbox_points = next(
+                l for l in source.viewer.layers[::-1] if isinstance(l, Points)
+            )
+        bbox_world = bbox_points._transforms[1:].simplified(bbox_points.data)
+        minr_i, minh_i, mintheta_i = bbox_world.min(axis=0).astype(int)
+        maxr_i, maxh_i, maxtheta_i = bbox_world.max(axis=0).astype(int)
+        minr, maxr = source.radius[[minr_i, maxr_i]]
+        minh, maxh = source.height[[minh_i, maxh_i]]
+        mintheta, maxtheta = source.theta[[mintheta_i, maxtheta_i]]
+        # Calculate height and theta resolution
+        mean_r = (maxr - minr) / 2
+        height, theta = get_square_pixels(
+            maxtheta, mintheta, maxh, minh, slice_npixels, mean_r
+        )
+        radius = np.linspace(minr, maxr, r_resolution)
+        coordinates = cylindrical_to_data(
+            height, radius, theta, source.cyl_frame, source.source_layer.scale
+        )
+        if image_layers is None:
+            # take the layers before the preview layer
+            image_layers = []
+            for layer in source.viewer.layers:
+                if isinstance(layer, Image):
+                    if source.out_layer is not None and (
+                        layer.name == source.out_layer.name
+                    ):
+                        break
+                    image_layers.append(layer)
+        out_layers: list[Image] = []
+        for layer in image_layers:
+            out = map_coordinates(layer.data, coordinates, order=3, cval=0)
+            out = out.swapaxes(1, 0)
+            # fix dtype
+            out_layers.append(
+                source.viewer.add_image(
+                    out,
+                    name=layer.name + "-zoomin",
+                    colormap=layer.colormap,
+                    blending=layer.blending,
+                    projection_mode=layer.projection_mode,
+                )
+            )
+        return cls(
+            theta=theta,
+            height=height,
+            radius=radius,
+            preview=source,
+            out_layers=out_layers,
+        )
+
+    def get_degrees_per_pixel(self) -> float:
+        return 360 * (self.theta[-1] - self.theta[0]) / self.theta.size / 2 / np.pi
+
+    def get_microns_per_pixel(self) -> float:
+        return (self.height[-1] - self.height[0]) / self.height.size
+
+    def get_max_scale(self) -> tuple[float, float, float]:
+        """
+        Returns the scale in microns in all three axes at their lowest resolution
+        """
+        return (
+            (self.radius[-1] - self.radius[0]) / self.radius.size,
+            self.get_microns_per_pixel(),
+            self.radius[-1] / self.theta.size,
+        )
