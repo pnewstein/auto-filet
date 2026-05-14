@@ -210,14 +210,8 @@ class AutoFilet:
         p1z, p1y, p1x = p1.tolist()
         axis_points = ((p0z, p0y, p0x), (p1z, p1y, p1x))
         cyl_frame = CylinderFrame.create(axis_points)
-        coords = cylindrical_to_data(
-            height, radius, theta, cyl_frame, preview_channel.scale
-        )
-        out = map_coordinates(preview_channel.data, coords, order=0, cval=0)
-        out = out.swapaxes(1, 0)
-        out_layer = viewer.add_image(out, name="preview", projection_mode="max")
-        assert isinstance(out_layer, Image)
-        return cls(
+        out_layer = None
+        out = cls(
             viewer=viewer,
             theta=theta,
             height=height,
@@ -227,6 +221,19 @@ class AutoFilet:
             axis_points=axis_points,
             out_layer=out_layer,
         )
+        out.render()
+        return out
+
+    def render(self):
+        coords = cylindrical_to_data(
+            self.height, self.radius, self.theta, self.cyl_frame, self.source_layer.scale
+        )
+        out_data = map_coordinates(self.source_layer.data, coords, order=0, cval=0)
+        out_data = out_data.swapaxes(1, 0)
+        out_layer = self.viewer.add_image(out_data, name="preview", projection_mode="max")
+        assert isinstance(out_layer, Image)
+        self.out_layer = out_layer
+        
 
     def shift(self, break_points: Points | None = None):
         """
@@ -291,17 +298,8 @@ class AutoFilet:
         radius = np.linspace(*src_dict["radius"])
         height = np.linspace(*src_dict["height"])
         cyl_frame = CylinderFrame.create(axis_points)
-        if create_out_layer:
-            coordinates = cylindrical_to_data(
-                height, radius, theta, cyl_frame, source_layer.scale
-            )
-            out = map_coordinates(source_layer.data, coordinates, order=0, cval=0)
-            out = out.swapaxes(1, 0)
-            out_layer = viewer.add_image(out, name="preview", projection_mode="max")
-            assert isinstance(out_layer, Image)
-        else:
-            out_layer = None
-        return cls(
+        out_layer = None
+        out = cls(
             viewer=viewer,
             theta=theta,
             height=height,
@@ -311,6 +309,9 @@ class AutoFilet:
             axis_points=axis_points,
             out_layer=out_layer,
         )
+        if create_out_layer:
+            out.render()
+        return out
 
 
 @dataclass(frozen=True)

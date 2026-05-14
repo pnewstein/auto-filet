@@ -66,5 +66,7 @@ Once napari is succesfuly installed, use the following command
 
     Path("Auto_filet.json").write_text(json.dumps(pc.to_dict()))
     ```
-1.  After loa image, load 
+1.  After loading raw image, load the autofilet
+
+    ```AutoFilet.from_dict(json.loads(Path("Auto_filet.json").read_text()), viewer)```
     
