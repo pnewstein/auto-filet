@@ -382,7 +382,7 @@ class View:
         )
         mins = np.min(view_limits, axis=(1, 2, 3))
         maxs = np.max(view_limits, axis=(1, 2, 3))
-        padding = 0.1 * (maxs - mins)
+        padding = 0.2 * (maxs - mins)
         lower_limit = mins - padding
         upper_limit = maxs + padding
         ranges = upper_limit - lower_limit
