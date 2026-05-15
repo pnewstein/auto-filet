@@ -16,7 +16,8 @@ keywords = ["automation", "files", "processing"]
 dependencies = [
     "napari",
     "scipy",
-    "numpy"
+    "numpy",
+    "tifffile"
 ]
 
 [project.urls]

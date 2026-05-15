@@ -1,9 +1,26 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 from napari.layers import Points, Image
 import napari.viewer
 from scipy.ndimage import map_coordinates
 import numpy as np
+import tifffile
+
+
+def save_image(layers: list[Image], path: Path, scale=True):
+    data = np.stack([l.data for l in layers])
+    with tifffile.TiffWriter(path, ome=True) as tif:
+        metadata = {"axes": "CZYX", "Channel": {"Name": [l.name for l in layers]}}
+        if scale:
+            metadata = metadata | {
+                "PhysicalSizeZ": layers[0].scale[0],
+                "PhysicalSizeY": layers[0].scale[1],
+                "PhysicalSizeX": layers[0].scale[2],
+            }
+        tif.write(
+            data, metadata=metadata, compression="ZLIB", compressionargs={"level": 8}
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -477,6 +494,9 @@ class View:
                 mid_theta=data["mid_theta"],
             )
 
+    def save_image(self, path: Path):
+        save_image(self.out_layers, path=path, scale=True)
+
 
 @dataclass(frozen=True)
 class ZoomIn:
@@ -579,3 +599,6 @@ class ZoomIn:
             self.get_microns_per_pixel(),
             self.radius[-1] / self.theta.size,
         )
+
+    def save_image(self, path: Path):
+        save_image(self.out_layers, path=path, scale=False)
