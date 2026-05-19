@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import json
 
 import numpy as np
 import pytest
-from napari.layers import Image
 import numpy as np
 import pytest
-from scipy.ndimage import map_coordinates
 
 if TYPE_CHECKING:
     import napari.viewer
@@ -19,7 +19,7 @@ from auto_filet import (
     get_square_pixels,
     View,
     cylindrical_to_view,
-    cylindrical_to_data
+    cylindrical_to_data,
 )
 
 import numpy as np
@@ -28,10 +28,12 @@ import pytest
 
 # --- Fixtures ---
 
+
 @pytest.fixture
 def simple_cyl():
     """Cylinder with axis along world Y."""
     return CylinderFrame.create(((0, 0, 0), (0, 1, 0)))
+
 
 @pytest.fixture
 def diagonal_cyl():
@@ -41,8 +43,10 @@ def diagonal_cyl():
 
 # --- CylinderFrame ---
 
+
 def test_cylinder_frame_axis_is_unit(simple_cyl):
     assert np.isclose(np.linalg.norm(simple_cyl.axis), 1.0)
+
 
 def test_cylinder_frame_orthonormal(diagonal_cyl):
     """axis, x_prime, y_prime must be mutually orthogonal unit vectors."""
@@ -51,10 +55,14 @@ def test_cylinder_frame_orthonormal(diagonal_cyl):
         assert np.isclose(np.linalg.norm(v), 1.0, atol=1e-10)
     assert np.isclose(np.dot(diagonal_cyl.axis, diagonal_cyl.x_prime), 0.0, atol=1e-10)
     assert np.isclose(np.dot(diagonal_cyl.axis, diagonal_cyl.y_prime), 0.0, atol=1e-10)
-    assert np.isclose(np.dot(diagonal_cyl.x_prime, diagonal_cyl.y_prime), 0.0, atol=1e-10)
+    assert np.isclose(
+        np.dot(diagonal_cyl.x_prime, diagonal_cyl.y_prime), 0.0, atol=1e-10
+    )
+
 
 def test_cylinder_frame_origin(diagonal_cyl):
     assert np.allclose(diagonal_cyl.origin, [10, 20, 30])
+
 
 def test_cylinder_frame_axis_aligned_with_world_z():
     """Axis parallel to first world axis should not break Gram-Schmidt."""
@@ -65,6 +73,7 @@ def test_cylinder_frame_axis_aligned_with_world_z():
 
 # --- ViewFrame ---
 
+
 def test_view_frame_orthonormal(simple_cyl):
     view = ViewFrame.create(simple_cyl, view_angle=0.3)
     vecs = [view.z, view.y, view.x]
@@ -74,18 +83,23 @@ def test_view_frame_orthonormal(simple_cyl):
     assert np.isclose(np.dot(view.z, view.x), 0.0, atol=1e-10)
     assert np.isclose(np.dot(view.y, view.x), 0.0, atol=1e-10)
 
+
 def test_view_frame_y_is_cylinder_axis(simple_cyl):
-    for angle in [0, np.pi/4, np.pi/2, np.pi]:
+    for angle in [0, np.pi / 4, np.pi / 2, np.pi]:
         view = ViewFrame.create(simple_cyl, angle)
         assert np.allclose(view.y, simple_cyl.axis)
 
+
 def test_view_frame_z_is_radial(simple_cyl):
     """view.z should be parallel to the radial direction at view_angle."""
-    for angle in [0, np.pi/4, np.pi/2, np.pi]:
+    for angle in [0, np.pi / 4, np.pi / 2, np.pi]:
         view = ViewFrame.create(simple_cyl, angle)
         radial = np.cos(angle) * simple_cyl.x_prime + np.sin(angle) * simple_cyl.y_prime
-        cosine_sim = np.dot(view.z, radial) / (np.linalg.norm(view.z) * np.linalg.norm(radial))
+        cosine_sim = np.dot(view.z, radial) / (
+            np.linalg.norm(view.z) * np.linalg.norm(radial)
+        )
         assert np.isclose(abs(cosine_sim), 1.0, atol=1e-10)
+
 
 def test_view_frame_rotation_invariant_y(diagonal_cyl):
     """Rotating view_angle should never change the y axis."""
@@ -97,23 +111,29 @@ def test_view_frame_rotation_invariant_y(diagonal_cyl):
 
 # --- cylindrical_to_data ---
 
+
 def test_cylindrical_to_data_shape(simple_cyl):
     h = np.linspace(0, 1, 5)
     r = np.linspace(0, 1, 4)
-    t = np.linspace(0, 2*np.pi, 6)
+    t = np.linspace(0, 2 * np.pi, 6)
     scale = np.array([1.0, 1.0, 1.0])
     coords = cylindrical_to_data(h, r, t, simple_cyl, scale)
     assert coords.shape == (3, 5, 4, 6)
+
 
 def test_cylindrical_to_data_origin(simple_cyl):
     """r=0, h=0, any theta should give the cylinder origin."""
     scale = np.array([1.0, 1.0, 1.0])
     coords = cylindrical_to_data(
-        np.array([0.0]), np.array([0.0]), np.linspace(0, 2*np.pi, 10),
-        simple_cyl, scale
+        np.array([0.0]),
+        np.array([0.0]),
+        np.linspace(0, 2 * np.pi, 10),
+        simple_cyl,
+        scale,
     )
     for i in range(10):
         assert np.allclose(coords[:, 0, 0, i], simple_cyl.origin / scale, atol=1e-10)
+
 
 def test_cylindrical_to_data_scale(simple_cyl):
     """Doubling scale should halve the data coords."""
@@ -127,6 +147,7 @@ def test_cylindrical_to_data_scale(simple_cyl):
 
 # --- cylindrical_to_view / view_to_data roundtrip ---
 
+
 def test_cylindrical_view_data_roundtrip(diagonal_cyl):
     """
     Converting cylindrical -> view -> data should give the same result
@@ -135,7 +156,7 @@ def test_cylindrical_view_data_roundtrip(diagonal_cyl):
     scale = np.array([2.0, 1.5, 1.0])
     h = np.linspace(0, 10, 5)
     r = np.linspace(0, 3, 4)
-    t = np.linspace(0, 2*np.pi, 6)
+    t = np.linspace(0, 2 * np.pi, 6)
     view = ViewFrame.create(diagonal_cyl, view_angle=0.5)
 
     # direct
@@ -151,15 +172,16 @@ def test_cylindrical_view_data_roundtrip(diagonal_cyl):
     # shapes differ so compare a known point: h=0, r=0, t=0
     assert np.allclose(direct[:, 0, 0, 0], via_view[:, 0, 0, 0], atol=1e-10)
 
+
 def test_view_to_data_origin_maps_correctly(diagonal_cyl):
     """vz=vy=vx=0 in view coords should map to cylinder origin in data."""
     scale = np.array([2.0, 1.5, 1.0])
     view = ViewFrame.create(diagonal_cyl, view_angle=0.5)
     coords = view_to_data(
-        (np.array([0.0]), np.array([0.0]), np.array([0.0])),
-        view, scale
+        (np.array([0.0]), np.array([0.0]), np.array([0.0])), view, scale
     )
     assert np.allclose(coords[:, 0, 0, 0], diagonal_cyl.origin / scale, atol=1e-10)
+
 
 def test_view_to_data_even_spacing():
     """
@@ -171,7 +193,7 @@ def test_view_to_data_even_spacing():
     scale = np.array([1.0, 1.0, 1.0])
 
     vz = np.linspace(-5, 5, 11)
-    vy = np.linspace( 0, 10, 11)
+    vy = np.linspace(0, 10, 11)
     vx = np.linspace(-5, 5, 11)
 
     coords = view_to_data((vz, vy, vx), view, scale)  # (3, 11, 11, 11)
@@ -185,8 +207,9 @@ def test_view_to_data_even_spacing():
         for ax, diff in enumerate(diffs):
             if diff.std() > 1e-10:
                 # this axis varies — check it's uniform
-                assert np.allclose(diff, diff.flat[0], atol=1e-10), \
-                    f"coord[{i}] is not evenly spaced along output axis {ax}"
+                assert np.allclose(
+                    diff, diff.flat[0], atol=1e-10
+                ), f"coord[{i}] is not evenly spaced along output axis {ax}"
 
 
 def test_view_to_data():
@@ -231,11 +254,9 @@ def test_view_to_data_spacing_matches_linspace():
     assert np.allclose(dz, expected_dz, atol=1e-10)
 
 
-
 Z = ((0, 0, 0), (0, 0, 1))
 X = ((0, 0, 0), (1, 0, 0))
 OFFSET_Z = ((1, 2, 3), (1, 2, 4))
-
 
 
 @pytest.mark.parametrize("npix", [100, 1000, 4000])
@@ -304,18 +325,23 @@ def add_data(viewer: "napari.viewer.Viewer"):
     viewer.add_image(cylindar.astype(np.uint8), scale=(1, 1, 2))
     viewer.add_points([[0, 50, 25], [40, 50, 25]], scale=(1, 1, 2))
 
+
 def test_90_deg(make_napari_viewer):
     viewer = make_napari_viewer()
     add_data(viewer)
     viewer.layers[0].data = viewer.layers[0].data.T
-    viewer.layers[1].data = viewer.layers[1].data[:,::-1]
-    pc = AutoFilet.create(viewer, radius_resolution=150, height_resolution=250, theta_resolution=150)
+    viewer.layers[1].data = viewer.layers[1].data[:, ::-1]
+    pc = AutoFilet.create(
+        viewer, radius_resolution=150, height_resolution=250, theta_resolution=150
+    )
 
 
 def test_preview(make_napari_viewer):
     viewer = make_napari_viewer()
     add_data(viewer)
-    pc = AutoFilet.create(viewer, radius_resolution=150, height_resolution=250, theta_resolution=150)
+    pc = AutoFilet.create(
+        viewer, radius_resolution=150, height_resolution=250, theta_resolution=150
+    )
     assert np.array_equal([0, 50, 50], pc.cyl_frame.origin)
     assert pc.out_layer.data[15].mean() < 100
     assert pc.out_layer.data[43].mean() > 100
@@ -323,6 +349,13 @@ def test_preview(make_napari_viewer):
     viewer.add_points([0, 0, 37.5])
     pc.shift()
     assert pc.out_layer.data[14, 50, 18] == 10, "stripe has moved"
+    # check file roundtrip
+    with TemporaryDirectory() as tempdir:
+        path = Path(tempdir) / "out.hd5"
+        pc.save(viewer, path)
+        v2 = make_napari_viewer()
+        pc4 = AutoFilet.load(v2, path)
+        assert pc4.to_dict() == pc.to_dict()
     # check round trip
     data = pc.to_dict()
     pc2 = pc.from_dict(data, viewer)
@@ -332,8 +365,8 @@ def test_preview(make_napari_viewer):
     viewer.add_points(([[14, 42, 7], [12, 141, 134]]))
     view = View.create(pc)
     view_data = view.out_layers[0].data
-    assert view_data[5, 8, 18] == 10
+    assert view_data[8, 12, 20] == 10
     # check round trip
     data = view.to_dict()
     view2 = view.from_dict(json.loads(json.dumps(data)), viewer)
-    assert np.all(view_data ==  view2.out_layers[0].data)
+    assert np.all(view_data == view2.out_layers[0].data)

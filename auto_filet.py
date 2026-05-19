@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+import h5py
 from napari.layers import Points, Image
 import napari.viewer
 from scipy.ndimage import map_coordinates
@@ -334,6 +335,68 @@ class AutoFilet:
         if create_out_layer:
             out.render()
         return out
+
+    def save(self, viewer: napari.Viewer, path: Path):
+        """
+        saves the viewer with the autofilet
+        """
+        with h5py.File(path, "w") as f:
+            for layer in viewer.layers:
+                dset = f.create_dataset(layer.name, data=layer.data)
+                dset.attrs["scale"] = np.array(layer.scale)
+                dset.attrs["type"] = layer.__class__.__name__
+            af_dset = f.create_group("auto_filet")
+            af_dset.attrs["theta"] = np.array(
+                [self.theta[0], self.theta[-1], self.theta.size]
+            )
+            af_dset.attrs["height"] = np.array(
+                [self.height[0], self.height[-1], self.height.size]
+            )
+            af_dset.attrs["radius"] = np.array(
+                [self.radius[0], self.radius[-1], self.radius.size]
+            )
+            af_dset.attrs["source_layer"] = self.source_layer.name
+            if self.out_layer is None:
+                raise ValueError("Run .render first")
+            af_dset.attrs["out_layer"] = self.out_layer.name
+            af_dset.attrs["axis_points"] = np.array(self.axis_points)
+
+    @classmethod
+    def load(cls, viewer: napari.Viewer, path: Path):
+        with h5py.File(path, "r") as f:
+            af_hdf: h5py.Group | None = None
+            for key, dset_or_group in f.items():
+                if isinstance(dset_or_group, h5py.Dataset):
+                    dset = dset_or_group
+                    if dset.attrs["type"] == "Image":
+                        viewer.add_image(dset, scale=dset.attrs["scale"], name=key)
+                    elif dset.attrs["type"] == "Points":
+                        viewer.add_points(dset, scale=dset.attrs["scale"], name=key)
+                    else:
+                        raise NotImplementedError()
+                else:
+                    assert key == "auto_filet"
+                    af_hdf = dset_or_group
+            assert af_hdf is not None
+            assert isinstance(af_hdf, h5py.Group)
+            p0, p1 = af_hdf.attrs["axis_points"]  # type: ignore
+            p0z, p0y, p0x = p0
+            p1z, p1y, p1x = p1
+            axis_points = ((p0z, p0y, p0x), (p1z, p1y, p1x))
+
+            def args_to_tuple(args):
+                return args[0], args[1], int(args[2])
+
+            return cls(
+                viewer=viewer,
+                theta=np.linspace(*args_to_tuple(af_hdf.attrs["theta"])),
+                height=np.linspace(*args_to_tuple(af_hdf.attrs["height"])),
+                radius=np.linspace(*args_to_tuple(af_hdf.attrs["radius"])),
+                source_layer=viewer.layers[af_hdf.attrs["source_layer"]],
+                out_layer=viewer.layers[af_hdf.attrs["out_layer"]],
+                cyl_frame=CylinderFrame.create(axis_points),
+                axis_points=axis_points,
+            )
 
 
 @dataclass(frozen=True)

@@ -17,7 +17,8 @@ dependencies = [
     "napari",
     "scipy",
     "numpy",
-    "tifffile"
+    "tifffile",
+    "h5py"
 ]
 
 [project.urls]
