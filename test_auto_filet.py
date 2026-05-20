@@ -352,7 +352,7 @@ def test_preview(make_napari_viewer):
     # check file roundtrip
     with TemporaryDirectory() as tempdir:
         path = Path(tempdir) / "out.hd5"
-        pc.save(viewer, path)
+        pc.save(path)
         v2 = make_napari_viewer()
         pc4 = AutoFilet.load(v2, path)
         assert pc4.to_dict() == pc.to_dict()

@@ -336,15 +336,29 @@ class AutoFilet:
             out.render()
         return out
 
-    def save(self, viewer: napari.Viewer, path: Path):
+    def save(self, path: Path):
         """
         saves the viewer with the autofilet
         """
         with h5py.File(path, "w") as f:
-            for layer in viewer.layers:
-                dset = f.create_dataset(layer.name, data=layer.data)
-                dset.attrs["scale"] = np.array(layer.scale)
+            layers = f.create_group("layers")
+            for layer in self.viewer.layers:
+                ltype = layer.__class__.__name__
+                if ltype == "Image":
+                    dset = layers.create_dataset(
+                        layer.name,
+                        data=layer.data,
+                        compression="gzip",
+                        compression_opts=9,
+                    )
+                else:
+                    dset = layers.create_dataset(layer.name, data=layer.data)
                 dset.attrs["type"] = layer.__class__.__name__
+                dset.attrs["scale"] = np.array(layer.scale)
+            layer_names = f.create_dataset(
+                "layer_names", shape=len(self.viewer.layers), dtype=h5py.string_dtype()
+            )
+            layer_names[:] = [l.name for l in self.viewer.layers]
             af_dset = f.create_group("auto_filet")
             af_dset.attrs["theta"] = np.array(
                 [self.theta[0], self.theta[-1], self.theta.size]
@@ -364,20 +378,17 @@ class AutoFilet:
     @classmethod
     def load(cls, viewer: napari.Viewer, path: Path):
         with h5py.File(path, "r") as f:
-            af_hdf: h5py.Group | None = None
-            for key, dset_or_group in f.items():
-                if isinstance(dset_or_group, h5py.Dataset):
-                    dset = dset_or_group
-                    if dset.attrs["type"] == "Image":
-                        viewer.add_image(dset, scale=dset.attrs["scale"], name=key)
-                    elif dset.attrs["type"] == "Points":
-                        viewer.add_points(dset, scale=dset.attrs["scale"], name=key)
-                    else:
-                        raise NotImplementedError()
+            for key in f["layer_names"]:
+                dset = f["layers"][key]
+                if dset.attrs["type"] == "Image":
+                    viewer.add_image(dset, scale=dset.attrs["scale"], name=key.decode())
+                elif dset.attrs["type"] == "Points":
+                    viewer.add_points(
+                        dset, scale=dset.attrs["scale"], name=key.decode()
+                    )
                 else:
-                    assert key == "auto_filet"
-                    af_hdf = dset_or_group
-            assert af_hdf is not None
+                    raise NotImplementedError()
+            af_hdf = f["auto_filet"]
             assert isinstance(af_hdf, h5py.Group)
             p0, p1 = af_hdf.attrs["axis_points"]  # type: ignore
             p0z, p0y, p0x = p0
