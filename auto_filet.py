@@ -336,9 +336,10 @@ class AutoFilet:
             out.render()
         return out
 
-    def save(self, path: Path):
+    def save(self, path: Path, compression_arg=1):
         """
         saves the viewer with the autofilet
+        compression_arg mus be an intger 1 to 9. 9 meaning most compression
         """
         with h5py.File(path, "w") as f:
             layers = f.create_group("layers")
@@ -349,7 +350,7 @@ class AutoFilet:
                         layer.name,
                         data=layer.data,
                         compression="gzip",
-                        compression_opts=9,
+                        compression_opts=compression_arg,
                     )
                 else:
                     dset = layers.create_dataset(layer.name, data=layer.data)
@@ -381,10 +382,10 @@ class AutoFilet:
             for key in f["layer_names"]:
                 dset = f["layers"][key]
                 if dset.attrs["type"] == "Image":
-                    viewer.add_image(dset, scale=dset.attrs["scale"], name=key.decode())
+                    viewer.add_image(np.array(dset), scale=dset.attrs["scale"], name=key.decode())
                 elif dset.attrs["type"] == "Points":
                     viewer.add_points(
-                        dset, scale=dset.attrs["scale"], name=key.decode()
+                        np.array(dset), scale=dset.attrs["scale"], name=key.decode()
                     )
                 else:
                     raise NotImplementedError()
