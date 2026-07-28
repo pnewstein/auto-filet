@@ -491,6 +491,7 @@ class View:
                     colormap=layer.colormap,
                     blending="translucent" if first else "additive",
                     projection_mode=layer.projection_mode,
+                    visible=False,
                 )
             )
             first = False
@@ -618,6 +619,10 @@ class ZoomIn:
         minr, maxr = source.radius[[minr_i, maxr_i]]
         minh, maxh = source.height[[minh_i, maxh_i]]
         mintheta, maxtheta = source.theta[[mintheta_i, maxtheta_i]]
+        mintheta = mintheta - 0.25 # ~ 15 degree buffer
+        maxtheta = maxtheta + 0.25 # ~ 15 degree buffer
+        maxr = maxr + 10
+        minr = minr - 10
         # Calculate height and theta resolution
         mean_r = (maxr - minr) / 2
         height, theta = get_square_pixels(
