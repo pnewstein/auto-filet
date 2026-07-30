@@ -336,16 +336,17 @@ class AutoFilet:
             out.render()
         return out
 
-    def save(self, path: Path, compression_arg=1):
+    def save(self, path: Path, compression_arg=0):
         """
         saves the viewer with the autofilet
         compression_arg mus be an intger 1 to 9. 9 meaning most compression
+        if compression_arg is 0, no compression
         """
         with h5py.File(path, "w") as f:
             layers = f.create_group("layers")
             for layer in self.viewer.layers:
                 ltype = layer.__class__.__name__
-                if ltype == "Image":
+                if ltype == "Image" and compression_arg > 0:
                     dset = layers.create_dataset(
                         layer.name,
                         data=layer.data,
@@ -382,7 +383,9 @@ class AutoFilet:
             for key in f["layer_names"]:
                 dset = f["layers"][key]
                 if dset.attrs["type"] == "Image":
-                    viewer.add_image(np.array(dset), scale=dset.attrs["scale"], name=key.decode())
+                    viewer.add_image(
+                        np.array(dset), scale=dset.attrs["scale"], name=key.decode()
+                    )
                 elif dset.attrs["type"] == "Points":
                     viewer.add_points(
                         np.array(dset), scale=dset.attrs["scale"], name=key.decode()
@@ -619,8 +622,8 @@ class ZoomIn:
         minr, maxr = source.radius[[minr_i, maxr_i]]
         minh, maxh = source.height[[minh_i, maxh_i]]
         mintheta, maxtheta = source.theta[[mintheta_i, maxtheta_i]]
-        mintheta = mintheta - 0.25 # ~ 15 degree buffer
-        maxtheta = maxtheta + 0.25 # ~ 15 degree buffer
+        mintheta = mintheta - 0.25  # ~ 15 degree buffer
+        maxtheta = maxtheta + 0.25  # ~ 15 degree buffer
         maxr = maxr + 10
         minr = minr - 10
         # Calculate height and theta resolution
@@ -682,3 +685,28 @@ class ZoomIn:
 
     def save_image(self, path: Path):
         save_image(self.out_layers, path=path, scale=False)
+
+
+def compress_autofilet(path: Path):
+    with h5py.File(path, "a") as f:
+        layer_names = f["layer_names"]
+        assert isinstance(layer_names, h5py.Dataset)
+        for key in layer_names:
+            layers = f["layers"]
+            assert isinstance(layers, h5py.Group)
+            dset: h5py.Dataset = layers[key] # type: ignore
+            print(dset)
+            print(dict(dset.attrs))
+
+            if dset.attrs["type"] == "Image" and dset.compression_opts != 9:
+                attrs = dset.attrs
+                compressed_key = key + b"_compressed"
+                assert compressed_key not in f["layers"]
+                layers.create_dataset(
+                    compressed_key, data=dset, compression="gzip", compression_opts=9
+                )
+                for akey, avalue in layers[key].attrs.items():
+                    layers["compressed_key"].attrs[akey] = avalue
+                del layers[key]
+                layers.move(compressed_key, key)
+                print(layers[key].nbytes / layers[key].get_storage_size())
