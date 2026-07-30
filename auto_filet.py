@@ -336,11 +336,16 @@ class AutoFilet:
             out.render()
         return out
 
-    def save(self, path: Path, compression_arg=1):
+    def save(
+        self, path: Path, compression_arg=1, render_layers: list[Image] | None = None
+    ):
         """
         saves the viewer with the autofilet
         compression_arg mus be an intger 1 to 9. 9 meaning most compression
         """
+        if render_layers is None:
+            render_layers = []
+
         with h5py.File(path, "w") as f:
             layers = f.create_group("layers")
             for layer in self.viewer.layers:
@@ -360,6 +365,10 @@ class AutoFilet:
                 "layer_names", shape=len(self.viewer.layers), dtype=h5py.string_dtype()
             )
             layer_names[:] = [l.name for l in self.viewer.layers]
+            rl_dset = f.create_dataset(
+                "render_layers", shape=len(render_layers), dtype=h5py.string_dtype()
+            )
+            rl_dset[:] = [l.name for l in render_layers]
             af_dset = f.create_group("auto_filet")
             af_dset.attrs["theta"] = np.array(
                 [self.theta[0], self.theta[-1], self.theta.size]
@@ -380,9 +389,13 @@ class AutoFilet:
     def load(cls, viewer: napari.Viewer, path: Path):
         with h5py.File(path, "r") as f:
             for key in f["layer_names"]:
+                print(key in f["render_layers"])
                 dset = f["layers"][key]
                 if dset.attrs["type"] == "Image":
-                    viewer.add_image(np.array(dset), scale=dset.attrs["scale"], name=key.decode())
+                    img = viewer.add_image(
+                        np.array(dset), scale=dset.attrs["scale"], name=key.decode()
+                    )
+                    img.metadata["render_layers"] = key in f["render_layers"]
                 elif dset.attrs["type"] == "Points":
                     viewer.add_points(
                         np.array(dset), scale=dset.attrs["scale"], name=key.decode()
@@ -619,8 +632,8 @@ class ZoomIn:
         minr, maxr = source.radius[[minr_i, maxr_i]]
         minh, maxh = source.height[[minh_i, maxh_i]]
         mintheta, maxtheta = source.theta[[mintheta_i, maxtheta_i]]
-        mintheta = mintheta - 0.25 # ~ 15 degree buffer
-        maxtheta = maxtheta + 0.25 # ~ 15 degree buffer
+        mintheta = mintheta - 0.25  # ~ 15 degree buffer
+        maxtheta = maxtheta + 0.25  # ~ 15 degree buffer
         maxr = maxr + 10
         minr = minr - 10
         # Calculate height and theta resolution
