@@ -351,6 +351,8 @@ class AutoFilet:
             layers = f.create_group("layers")
             for layer in self.viewer.layers:
                 ltype = layer.__class__.__name__
+                if ltype == "Shapes":
+                    continue
                 if ltype == "Image" and compression_arg > 0:
                     dset = layers.create_dataset(
                         layer.name,
