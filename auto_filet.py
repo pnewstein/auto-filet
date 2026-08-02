@@ -337,7 +337,7 @@ class AutoFilet:
         return out
 
     def save(
-        self, path: Path, compression_arg=1, render_layers: list[Image] | None = None
+        self, path: Path, compression_arg=0, render_layers: list[Image] | None = None
     ):
         """
         saves the viewer with the autofilet
