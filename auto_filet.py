@@ -10,7 +10,7 @@ import tifffile
 
 
 def save_image(layers: list[Image], path: Path, scale=True):
-    data = np.stack([l.data for l in layers])
+    data = np.stack([np.array(l.data) for l in layers])
     with tifffile.TiffWriter(path, ome=True) as tif:
         metadata = {"axes": "CZYX", "Channel": {"Name": [l.name for l in layers]}}
         if scale:
@@ -337,11 +337,12 @@ class AutoFilet:
         return out
 
     def save(
-        self, path: Path, compression_arg=1, render_layers: list[Image] | None = None
+        self, path: Path, compression_arg=0, render_layers: list[Image] | None = None
     ):
         """
         saves the viewer with the autofilet
         compression_arg mus be an intger 1 to 9. 9 meaning most compression
+        if compression_arg is 0, no compression
         """
         if render_layers is None:
             render_layers = []
@@ -350,7 +351,9 @@ class AutoFilet:
             layers = f.create_group("layers")
             for layer in self.viewer.layers:
                 ltype = layer.__class__.__name__
-                if ltype == "Image":
+                if ltype == "Shapes":
+                    continue
+                if ltype == "Image" and compression_arg > 0:
                     dset = layers.create_dataset(
                         layer.name,
                         data=layer.data,
@@ -697,3 +700,28 @@ class ZoomIn:
 
     def save_image(self, path: Path):
         save_image(self.out_layers, path=path, scale=False)
+
+
+def compress_autofilet(path: Path):
+    with h5py.File(path, "a") as f:
+        layer_names = f["layer_names"]
+        assert isinstance(layer_names, h5py.Dataset)
+        for key in layer_names:
+            layers = f["layers"]
+            assert isinstance(layers, h5py.Group)
+            dset: h5py.Dataset = layers[key] # type: ignore
+            print(dset)
+            print(dict(dset.attrs))
+
+            if dset.attrs["type"] == "Image" and dset.compression_opts != 9:
+                attrs = dset.attrs
+                compressed_key = key + b"_compressed"
+                assert compressed_key not in f["layers"]
+                layers.create_dataset(
+                    compressed_key, data=dset, compression="gzip", compression_opts=9
+                )
+                for akey, avalue in layers[key].attrs.items():
+                    layers["compressed_key"].attrs[akey] = avalue
+                del layers[key]
+                layers.move(compressed_key, key)
+                print(layers[key].nbytes / layers[key].get_storage_size())
