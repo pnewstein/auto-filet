@@ -29,4 +29,4 @@ Repository = "https://github.com/pnewstein/auto-filet"
 py-modules = ["auto_filet"]
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
