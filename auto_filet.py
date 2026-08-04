@@ -390,6 +390,8 @@ class AutoFilet:
         with h5py.File(path, "r") as f:
             for key in f["layer_names"]:
                 print(key in f["render_layers"])
+                if key not in f["layers"]:
+                    continue
                 dset = f["layers"][key]
                 if dset.attrs["type"] == "Image":
                     img = viewer.add_image(
