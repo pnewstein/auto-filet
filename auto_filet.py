@@ -10,7 +10,7 @@ import tifffile
 
 
 def save_image(layers: list[Image], path: Path, scale=True):
-    data = np.stack([l.data for l in layers])
+    data = np.stack([np.array(l.data) for l in layers])
     with tifffile.TiffWriter(path, ome=True) as tif:
         metadata = {"axes": "CZYX", "Channel": {"Name": [l.name for l in layers]}}
         if scale:
