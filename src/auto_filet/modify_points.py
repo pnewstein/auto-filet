@@ -20,7 +20,11 @@ def load_lite(path: Path, viewer: Viewer) -> list[str]:
             if dset.attrs["type"] == "Points":
                 layer_names.append(key.decode())
                 viewer.add_points(
-                    np.array(dset), scale=dset.attrs["scale"], name=key.decode()
+                    np.array(dset),
+                    scale=dset.attrs["scale"],
+                    name=key.decode(),
+                    out_of_slice_display=True,
+                    size=20,
                 )
         af_hdf = f["auto_filet"]
         out_layer = af_hdf.attrs["out_layer"]
@@ -38,4 +42,10 @@ def write_lite(path: Path, layer_names: list[str], viewer: Viewer):
     layer_dict = {n: viewer.layers[n].data for n in layer_names}
     with h5py.File(path, "a") as f:
         for n, data in layer_dict.items():
-            f["layers"][n.encode()][...] = data
+            key = n.encode()
+            old = f["layers"][key]
+            attrs = dict(old.attrs)
+            del f["layers"][key]
+            new = f["layers"].create_dataset(key, data=data)
+            for k, v in attrs.items():
+                new.attrs[k] = v
