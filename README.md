@@ -47,10 +47,10 @@ Once napari is succesfuly installed, use the following command
    https://github.com/user-attachments/assets/a1066ef2-975f-4f54-8ddc-f09f01844775
 
 
-   ```python
-    from auto_filet import AutoFilet, ZoomIn
-    af = AutoFilet.create(viewer)
-   ```
+```python
+from auto_filet import AutoFilet, ZoomIn
+af = AutoFilet.create(viewer)
+```
 1. To change where the auto-filet is split, create a new points layer and add a
    point at the x value where you would like the split. (the Z and Y
    coordinates are ignored)
@@ -59,9 +59,9 @@ Once napari is succesfuly installed, use the following command
 https://github.com/user-attachments/assets/61a3bb7a-610b-413a-825c-68b1fc506fec
 
 
-    ```
-    af.shift()
-    ```
+```python
+af.shift()
+```
 
 
 1. To create a high resolution rendering of a portion of an image, make a new
@@ -70,23 +70,12 @@ https://github.com/user-attachments/assets/61a3bb7a-610b-413a-825c-68b1fc506fec
    
    https://github.com/user-attachments/assets/41c4b967-9d84-401c-b49f-598da71580d5
 
-
-    ``` ZoomIn.create(af) ```
+```python
+ZoomIn.create(af)
+```
    
    https://github.com/user-attachments/assets/183b8653-248e-4232-b533-99692627d4c3
 
-### IO
 
-1. Save the instructions for this view
-
-    ```
-    from pathlib import Path
-    import json
-
-    Path("Auto_filet.json").write_text(json.dumps(af.to_dict()))
-    ```
-1.  After loading raw image, load the autofilet
-
-    ```AutoFilet.from_dict(json.loads(Path("Auto_filet.json").read_text()), viewer)```
     
 
