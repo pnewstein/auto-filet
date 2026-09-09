@@ -1,4 +1,11 @@
-# Auto-filet
+# Auto-Filet
+<p align="center">
+<img width="396" height="171" alt="Image" src="https://github.com/user-attachments/assets/3a515c3b-ff20-4eff-82f9-ee2b61dafbe9" />
+</p>
+
+
+
+
 
 ## Instalation
 
@@ -35,7 +42,10 @@ Once napari is succesfuly installed, use the following command
    layer](https://napari.org/stable/howtos/layers/points.html) and add two
    points to define the central axis of the embryo
 1. Run the following code to make a low range full resolution auto-filet
-   preview 
+   preview
+
+   https://github.com/user-attachments/assets/a1066ef2-975f-4f54-8ddc-f09f01844775
+
 
    ```python
     from auto_filet import AutoFilet, ZoomIn
@@ -45,6 +55,9 @@ Once napari is succesfuly installed, use the following command
    point at the x value where you would like the split. (the Z and Y
    coordinates are ignored)
 1. run the following code to perform the split
+   
+https://github.com/user-attachments/assets/61a3bb7a-610b-413a-825c-68b1fc506fec
+
 
     ```python
     af.shift()
@@ -54,8 +67,13 @@ Once napari is succesfuly installed, use the following command
 1. To create a high resolution rendering of a portion of an image, make a new
    points layer with points that cover the extent the preview that you want to
    render at high resolution
+   
+   https://github.com/user-attachments/assets/41c4b967-9d84-401c-b49f-598da71580d5
 
-    ``` ZoomIn.create(af) ``` 
+
+    ``` ZoomIn.create(af) ```
+   
+   https://github.com/user-attachments/assets/183b8653-248e-4232-b533-99692627d4c3
 
 ### IO
 
