@@ -499,8 +499,16 @@ class View:
         out_scale = tuple(c[1] - c[0] for c in coord_arrays)
         out_layers: list[Image] = []
         first = True
+        shape = image_layers[0].data.shape
+        lo = np.floor(out_coords.min(axis=(1, 2, 3))).astype(int)
+        hi = np.ceil(out_coords.max(axis=(1, 2, 3))).astype(int) + 1
+        lo = np.clip(lo, 0, np.array(shape))
+        hi = np.clip(hi, 0, np.array(shape))
+        out_coords_local = out_coords - lo[:, None, None, None]
         for layer in image_layers:
-            out = map_coordinates(layer.data, out_coords, order=3, cval=0)
+            array = layer.data[lo[0]:hi[0], lo[1]:hi[1], lo[2]:hi[2]]
+            print("mapping coords")
+            out = map_coordinates(array, out_coords_local, order=3, cval=0)
             out_layers.append(
                 preview.viewer.add_image(
                     out,
