@@ -59,7 +59,7 @@ Once napari is succesfuly installed, use the following command
 https://github.com/user-attachments/assets/61a3bb7a-610b-413a-825c-68b1fc506fec
 
 
-    ```python
+    ```
     af.shift()
     ```
 
